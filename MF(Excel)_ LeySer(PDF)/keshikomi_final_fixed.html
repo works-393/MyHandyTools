@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>MF × LeySer PDFくっつき文字対応ツール</title>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 20px; background-color: #f5f7fa; color: #333; }
+        h2 { color: #2c3e50; border-bottom: 2px solid #e74c3c; padding-bottom: 8px; }
+        .container { display: flex; gap: 20px; margin-bottom: 20px; }
+        .box { flex: 1; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        label { font-weight: bold; display: block; margin-bottom: 4px; color: #2c3e50; font-size: 15px; }
+        .sub-label { font-size: 11px; color: #7f8c8d; margin: 0 0 10px 0; line-height: 1.4; }
+        textarea { width: 100%; height: 220px; box-sizing: border-box; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; resize: vertical; background-color: #fafafa; }
+        textarea:focus { background-color: #fff; border-color: #e74c3c; outline: none; }
+        button { background-color: #e74c3c; color: white; border: none; padding: 14px 20px; font-size: 16px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; box-shadow: 0 3px 0 #c0392b; }
+        button:hover { background-color: #c0392b; }
+        button:active { transform: translateY(3px); box-shadow: none; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 14px; }
+        th { background-color: #34495e; color: white; }
+        .status-processed { color: #2ecc71; font-weight: bold; background-color: #e8f8f5; }
+        .status-error { color: #e74c3c; font-weight: bold; background-color: #fce4d6; }
+        .status-unprocessed { color: #7f8c8d; font-weight: bold; background-color: #f2f4f4; }
+        .summary { font-size: 16px; font-weight: bold; margin-top: 20px; padding: 15px; background: #eaf2f8; border-left: 5px solid #3498db; border-radius: 0 4px 4px 0; }
+    </style>
+</head>
+<body>
+
+    <h2>MF(Excel4列) × LeySer(PDF文字くっつき) 一括消込ツール</h2>
+
+    <div class="container">
+        <!-- 左側：MFデータ -->
+        <div class="box">
+            <label>① マネーフォワードのデータをコピペ（Excelから）</label>
+            <div class="sub-label">Excelの【申請No、会社コード、会社名、金額】を丸ごと貼付</div>
+            <textarea id="mfData" placeholder="Excelからコピーしてここに貼り付け"></textarea>
+        </div>
+
+        <!-- 右側：LeySerデータ（PDFから直接コピペ） -->
+        <div class="box">
+            <label>② LeySerの確認票データをコピペ（PDFから直接）</label>
+            <div class="sub-label">「住友商事55000」のように会社名と金額がくっついていても自動分解します</div>
+            <textarea id="leyserInput" placeholder="PDFからコピーしたテキストをそのまま貼り付け"></textarea>
+        </div>
+    </div>
+
+    <button onclick="executeCodeKeshikomi()">⚡ 会社コードで自動合算し、金額を厳密に照合する</button>
+
+    <div id="summaryResult" class="summary" style="display:none;"></div>
+
+    <h3>🔍 照合結果一覧（ LeySerのコード基準で、MFの合計金額を検証 ）</h3>
+    <table id="resultTable">
+        <thead>
+            <tr>
+                <th>会社コード</th>
+                <th>会社名（MFより補完）</th>
+                <th>LeySer支払額（自動抽出）</th>
+                <th>MF申請合計</th>
+                <th>判定ステータス</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 結果がここに表示されます -->
+        </tbody>
+    </table>
+
+<script>
+// ご提示いただいた「くっつきデータ」を初期セットしてテストできるようにします
+window.onload = function() {
+    document.getElementById("mfData").value = "200556\t70001\tA商事\t23550\n200557\t70002\t三井物産\t30500\n200558\t70003\t住友商事\t45000\n200559\t70001\tA商事\t10000\n200560\t70002\t三井物産\t10000\n200561\t70003\t住友商事\t10000";
+    document.getElementById("leyserInput").value = "70001\tA商事33550\n70002\t住友商事55000\n70003\t三井物産40500";
+};
+
+// 数字だけを抽出
+function cleanAmount(val) {
+    if (!val) return 0;
+    return Number(val.toString().replace(/[^0-9]/g, ''));
+}
+
+function executeCodeKeshikomi() {
+    const mfLines = document.getElementById("mfData").value.trim().split("\n");
+    const leyserLines = document.getElementById("leyserInput").value.trim().split("\n");
+
+    if (!document.getElementById("mfData").value.trim() || !document.getElementById("leyserInput").value.trim()) {
+        alert("両方の箱にデータを貼り付けてください。");
+        return;
+    }
+
+    // 1. マネーフォワード（左：Excelのタブ区切り）を自動合算
+    const mfCodeMap = {};
+    const mfNameMap = {}; 
+    
+    mfLines.forEach(line => {
+        if (line.trim() === "") return;
+        const cols = line.split("\t");
+        if (cols.length >= 4) {
+            const companyCode = cols[1].trim(); 
+            const companyName = cols[2].trim(); 
+            const amt = cleanAmount(cols[3]);   
+            
+            if (companyCode in mfCodeMap) {
+                mfCodeMap[companyCode] += amt;
+            } else {
+                mfCodeMap[companyCode] = amt;
+                mfNameMap[companyCode] = companyName; 
+            }
+        }
+    });
+
+    const tbody = document.querySelector("#resultTable tbody");
+    tbody.innerHTML = ""; 
+
+    let successCount = 0;
+    let errorCount = 0;
+    let notFoundCount = 0;
+    let totalRows = 0;
+
+    // 2. LeySer（右：くっつき文字対応）を解析
+    leyserLines.forEach(line => {
+        if (line.trim() === "") return;
+        totalRows++;
+
+        // タブまたはスペースで一旦区切る
+        const cols = line.trim().split(/[\s\t]+/);
+        
+        let leyserCode = cols[0].trim(); // 1列目は必ず会社コード（70001など）
+        let leyserAmtNum = 0;
+
+        // 2列目以降（会社名と金額がくっついている部分）を解析
+        // 例: "住友商事55000" の後ろの数字だけを正規表現でもぎ取る
+        let targetText = cols.slice(1).join(""); // 残りの文字を合体
+        
+        // 末尾の連続する数字（金額）を抽出する正規表現
+        const matchAmount = targetText.match(/(\d+)$/);
+        if (matchAmount) {
+            leyserAmtNum = Number(matchAmount[1]); // 末尾の数字を金額にする
+        }
+
+        // 会社名はMF側の綺麗なマスターからコードをキーに引っ張る
+        let displayName = leyserCode in mfNameMap ? mfNameMap[leyserCode] : "（不明の業者）";
+
+        let statusText = "";
+        let statusClass = "";
+        let mfTotalAmt = 0;
+
+        // 照合ロジック
+        if (leyserCode in mfCodeMap) {
+            mfTotalAmt = mfCodeMap[leyserCode];
+
+            if (mfTotalAmt === leyserAmtNum) {
+                statusText = "✨ 完全一致：消込OK";
+                statusClass = "status-processed";
+                successCount++;
+            } else {
+                statusText = `❌ 金額不一致！ (MF側合計は ${mfTotalAmt.toLocaleString()}円)`;
+                statusClass = "status-error";
+                errorCount++;
+            }
+        } else {
+            statusText = "⚠️ MF側にこの会社コードの申請なし";
+            statusClass = "status-unprocessed";
+            notFoundCount++;
+        }
+
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td><code>${leyserCode}</code></td>
+            <td>${displayName}</td>
+            <td>${leyserAmtNum.toLocaleString()}円</td>
+            <td>${mfTotalAmt > 0 ? mfTotalAmt.toLocaleString() + "円" : "0円"}</td>
+            <td class="${statusClass}">${statusText}</td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    // サマリー表示
+    const summary = document.getElementById("summaryResult");
+    summary.style.display = "block";
+    summary.innerHTML = `
+        📊 <strong>文字くっつき対応 照合結果サマリー</strong><br>
+        ・LeySerの振込先件数: ${totalRows} 件<br>
+        ・<span style="color:#2ecc71">コードも自動抽出の金額もピタリと一致: ${successCount} 件</span><br>
+        ・<span style="color:#e74c3c">合計金額がズレている（要確認）: ${errorCount} 件</span><br>
+        ・<span style="color:#7f8c8d">MFに該当する会社コードがない: ${notFoundCount} 件</span>
+    `;
+}
+</script>
+
+</body>
+</html>
