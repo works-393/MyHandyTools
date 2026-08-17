@@ -158,7 +158,16 @@
                     { name: "Program 2", desc: "「銀行くんAPI」を使った実装例", version: "v0.8.4",url: "bank/bank_list.html" },
                     { name: "Program 3", desc: "印刷物レイアウトシート", version: "v2.1.1",url: "print_Layout/print_Layout.html"  },
                     { name: "Program 4", desc: "MF(Excel4列) × LeySer(PDF) 一括消込ツール.", version: "v1.0.5",url: "MF_LeySer/keshikomi_final_fixed.html"  },
-                    { name: "Program 5", desc: "Distributed cache invalidation engine for heavy-load systems.", version: "v3.0.0" },
+                    // ★ 配列で2つのファイルを指定できるように変更、重複していた.htmlも修正
+                    { 
+                    name: "Program 5", 
+                    desc: "電話連絡メモ", 
+                    version: "v3.0.0", 
+                    urls: [
+                        { label: "memo✕4 A4", path: "telephone/telephone_memo.html" },
+                        { label: "memoA5-A6size", path: "telephone/telephone_memo_A5.html" } // 2つ目のファイル
+                    ] 
+                },
                     { name: "Program 6", desc: "Syntax highlighting engine designed for custom DSL compilers.", version: "v1.4.2" },
                     { name: "Program 7", desc: "Headless browser automation script for complex web scraping.", version: "v2.2.0" },
                     { name: "Program 8", desc: "Lightweight state machine library for embedded systems.", version: "v0.9.1" },
@@ -166,7 +175,34 @@
                     { name: "Program 10", desc: "API schema validator with automated documentation output.", version: "v1.5.0" }
                 ];
 
+                                // 各プログラムカードを画面に出力する処理
                 programs.forEach((p, i) => {
+                    // ボタン（リンク）のHTMLを一時的に格納する変数
+                    let linksHtml = '';
+                    
+                    // もし urls 配列を持っているデータ（Program 5など）の場合
+                    if (p.urls && Array.isArray(p.urls)) {
+                        linksHtml = `<div class="flex flex-col gap-2 w-full">`;
+                        p.urls.forEach(link => {
+                            linksHtml += `
+                                <a href="${link.path}" class="action-btn w-full py-stack-sm border border-outline-variant rounded-lg font-label-sm text-label-sm text-on-surface-variant transition-all active:scale-95 flex items-center justify-center gap-base no-underline hover:bg-surface-container-low">
+                                    ${link.label}
+                                    <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+                                </a>
+                            `;
+                        });
+                        linksHtml += `</div>`;
+                    } else {
+                        // 通常の1つだけURLがある場合
+                        linksHtml = `
+                            <a href="${p.url || '#'}" class="action-btn w-full py-stack-sm border border-outline-variant rounded-lg font-label-sm text-label-sm text-on-surface-variant transition-all active:scale-95 flex items-center justify-center gap-base no-underline hover:bg-surface-container-low">
+                                View Project
+                                <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+                            </a>
+                        `;
+                    }
+
+                    // カード全体のHTMLを出力（末尾の閉じカッコも正常に処理しています）
                     document.write(`
                         <div class="project-card group bg-surface-container-lowest border border-outline-variant rounded-xl p-stack-md flex flex-col justify-between transition-all duration-300 hover:border-primary/40 hover:shadow-lg hover:-translate-y-1">
                             <div>
@@ -179,15 +215,13 @@
                                     ${p.desc}
                                 </p>
                             </div>
-                            <!-- ★ ここを button から a タグに書き換えました ★ -->
-                            <a href="${p.url}" class="action-btn w-full py-stack-sm border border-outline-variant rounded-lg font-label-sm text-label-sm text-on-surface-variant transition-all active:scale-95 flex items-center justify-center gap-base no-underline">
-                                View Project
-                                <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
-                            </a>
+                            <!-- 生成したリンク（1つ、または2つ）をここに挿入 -->
+                            ${linksHtml}
                         </div>
-                    `); // ← 最後の閉じカッコ等も確認してください
-});
+                    `); 
+                });
             </script>
+
 </div>
 </section>
 </main>

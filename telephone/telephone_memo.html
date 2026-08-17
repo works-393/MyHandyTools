@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>電話連絡メモ作成ツール</title>
+<style>
+body {
+    font-family: sans-serif;
+    line-height: 1.6;
+    padding: 20px;
+    background-color: #f4f4f4;
+}
+.container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+h1 {
+    font-size: 22px;
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+}
+.form-group {
+    margin-bottom: 14px;
+}
+label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 4px;
+}
+input[type="text"], textarea, select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+.checkbox-group {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+.checkbox-group label {
+    font-weight: normal;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+button {
+    width: 100%;
+    margin-top: 20px;
+    padding: 12px;
+    background-color: #0076a3;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+}
+button:hover {
+    background-color: #005c80;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>電話連絡メモ入力シート</h1>
+    
+    <div class="form-group">
+        <label for="to_name">宛先（誰への電話か）</label>
+        <input type="text" id="to_name" placeholder="例：鈴木部長、営業部各位">
+    </div>
+
+    <div class="form-group">
+        <label id="date_label">日時</label>
+        <!-- JavaScriptで当日の日時を初期値として自動設定します -->
+        <input type="text" id="date_time">
+    </div>
+
+    <div class="form-group">
+        <label for="from_company">相手の会社名・所属</label>
+        <input type="text" id="from_company" placeholder="例：株式会社〇〇、総務部">
+    </div>
+
+    <div class="form-group">
+        <label for="from_name">相手のお名前</label>
+        <input type="text" id="from_name" placeholder="例：山田 様">
+    </div>
+
+    <div class="form-group">
+        <label>用件チェック</label>
+        <div class="checkbox-group">
+            <label><input type="checkbox" name="action" value="お電話がありました"> お電話あり</label>
+            <label><input type="checkbox" name="action" value="またお電話しますとのこと"> 再電あり</label>
+            <label><input type="checkbox" name="action" value="お電話くださいとのこと"> 要返信</label>
+            <label><input type="checkbox" name="action" value="伝言があります"> 伝言あり</label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="message">伝言・メモ内容</label>
+        <textarea id="message" rows="4" placeholder="例：資料送付の件で確認したいとのことです。"></textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="by_name">受付者（あなたの名前）</label>
+        <input type="text" id="by_name" placeholder="例：佐藤">
+    </div>
+
+    <button id="create">電話メモHTMLを生成</button>
+</div>
+
+<script>
+// ページ読み込み時に現在日時を自動入力
+const now = new Date();
+const pad = n => n.toString().padStart(2, '0');
+document.getElementById('date_time').value = `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+/* HTML生成とダウンロード */
+document.getElementById('create').addEventListener('click', () => {
+    const toName = document.getElementById('to_name').value || '＿＿＿＿＿';
+    const dateTime = document.getElementById('date_time').value;
+    const fromCompany = document.getElementById('from_company').value || '＿＿＿＿＿＿＿＿';
+    const fromName = document.getElementById('from_name').value || '＿＿＿＿＿';
+    const message = document.getElementById('message').value.replace(/\n/g, '<br>') || '＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿';
+    const byName = document.getElementById('by_name').value || '＿＿＿＿＿';
+
+    // チェックボックスの処理
+    const checkboxes = document.querySelectorAll('input[name="action"]');
+    let actionHtml = '';
+    checkboxes.forEach(cb => {
+        const checked = cb.checked ? '☑' : '□';
+        actionHtml += `<span class="check-item">${checked} ${cb.value}</span>`;
+    });
+
+    // 出力用HTMLの組み立て
+    // A4サイズ1枚に4分割（4枚分）で綺麗に印刷できるようにループ処理を入れています
+    let memoBlock = `
+    <div class="memo-card">
+        <div class="memo-header">
+            <span class="title">📞 電話連絡メモ</span>
+            <span class="date">${dateTime}</span>
+        </div>
+        <div class="field">
+            <span class="label-box">To:</span> <strong style="font-size: 16px;">${toName} 様</strong>
+        </div>
+        <div class="field border-top">
+            <span class="label-box">From:</span> <span>${fromCompany}</span><br>
+            <span style="display:inline-block; margin-left: 50px; font-size: 16px; font-weight: bold;">${fromName} 様</span>
+        </div>
+        <div class="actions">
+            ${actionHtml}
+        </div>
+        <div class="message-box">
+            <strong>【伝言内容】</strong><br>
+            ${message}
+        </div>
+        <div class="memo-footer">
+            <span>受付者: ${byName}</span>
+        </div>
+    </div>
+    `;
+
+    let html = `
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>電話連絡メモ_${fromName}</title>
+<style>
+body {
+    margin: 0;
+    padding: 10px;
+    font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+    background-color: #ffffff;
+    color: #000000;
+}
+/* A4用紙に4枚きれいに収めるためのグリッド配置 */
+.grid-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    max-width: 210mm; /* A4幅基準 */
+    margin: 0 auto;
+}
+.memo-card {
+    border: 2px dashed #666;
+    border-radius: 6px;
+    padding: 12px;
+    background-color: #fff;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 135mm; /* A4縦に2段入る高さ */
+}
+.memo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #000;
+    padding-bottom: 4px;
+    margin-bottom: 10px;
+}
+.title {
+    font-size: 16px;
+    font-weight: bold;
+}
+.date {
+    font-size: 12px;
+}
+.field {
+    margin-bottom: 8px;
+}
+.border-top {
+    border-top: 1px dashed #ccc;
+    padding-top: 8px;
+}
+.label-box {
+    display: inline-block;
+    width: 45px;
+    font-weight: bold;
+}
+.actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin: 8px 0;
+    padding: 8px;
+    border: 1px solid #000;
+    border-radius: 4px;
+    font-size: 12px;
+}
+.message-box {
+    flex-grow: 1;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 8px;
+    margin: 8px 0;
+    font-size: 13px;
+    min-height: 80px;
+    background-color: #fafafa;
+}
+.memo-footer {
+    text-align: right;
+    font-size: 12px;
+    border-top: 1px solid #000;
+    padding-top: 4px;
+}
+/* 印刷時は背景色を透明にし、線の視認性を最優先 */
+@media print {
+    body { padding: 0; }
+    .memo-card { background-color: transparent; }
+    .message-box { background-color: transparent; }
+}
+</style>
+</head>
+<body>
+<div class="grid-container">
+    ${memoBlock}
+    ${memoBlock}
+    ${memoBlock}
+    ${memoBlock}
+</div>
+</body>
+</html>
+`.trim();
+
+    // ダウンロードファイル名の設定 (日付ベース)
+    const fileDate = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+    const filename = `tel_memo_${fileDate}.html`;
+
+    const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+});
+</script>
+
+</body>
+</html>
