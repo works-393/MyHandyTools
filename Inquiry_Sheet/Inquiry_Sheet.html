@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Inquiry Sheet Generator (with Ext.)</title>
+<style>
+body {
+    font-family: sans-serif;
+    line-height: 1.6;
+    padding: 20px;
+    background-color: #f4f4f4;
+}
+.container {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+h1 {
+    font-size: 22px;
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+}
+.form-group {
+    margin-bottom: 14px;
+}
+.form-row {
+    display: flex;
+    gap: 15px;
+}
+.form-row .form-group {
+    flex: 1;
+}
+/* 内線番号用に幅を狭くする設定 */
+.form-row .form-group.ext-group {
+    flex: 0 0 120px;
+}
+label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 4px;
+}
+input[type="text"], textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+.checkbox-group {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+.checkbox-group label {
+    font-weight: normal;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+button {
+    width: 100%;
+    margin-top: 20px;
+    padding: 12px;
+    background-color: #070d52;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+}
+button:hover {
+    background-color: #17252a;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>業務連絡シート　Inquiry Sheet</h1>
+    
+    <!-- To, From, 内線番号を横並びに配置 -->
+    <div class="form-row">
+        <div class="form-group">
+            <label for="to_name">To</label>
+            <input type="text" id="to_name" placeholder="例：経理担当 殿、鈴木部長">
+        </div>
+        <div class="form-group">
+            <label for="by_name">From</label>
+            <input type="text" id="by_name" placeholder="例：佐藤">
+        </div>
+        <div class="form-group ext-group">
+            <label for="ext_num">Ext. (内線)</label>
+            <input type="text" id="ext_num" placeholder="例：123">
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>用件種別（複数選択可） (Multiple selection available)</label>
+        <div class="checkbox-group">
+            <label><input type="checkbox" id="chk_seisan" name="action" value="旅費精算の件">旅費精算の件 Travel Expense Claim</label>
+            <!-- 判定用に id="chk_keihi" を追加しました -->
+            <label><input type="checkbox" id="chk_keihi" name="action" value="経費精算の件">経費精算の件 Expense Claim</label>
+            <label><input type="checkbox" name="action" value="業務連絡">業務連絡 General Inquiry</label>
+            <label><input type="checkbox" name="action" value="回覧"> 回覧 Circulation</label>
+            <label><input type="checkbox" name="action" value="その他"> その他 Other</label>
+        </div>
+    </div>
+
+    <!-- 精算情報エリア -->
+    <div class="form-row" style="background-color: #f9f9f9; padding: 10px; border: 1px dashed #ccc; border-radius: 4px; margin-bottom: 14px;">
+        <div class="form-group">
+            <label for="app_num" style="color: #134ab0;">社内申請番号　Application No.</label>
+            <input type="text" id="app_num" placeholder="e.g. S2026-00123">
+        </div>
+        <div class="form-group">
+            <label for="amount">精算金額　　　　　　Amount</label>
+            <input type="text" id="amount" placeholder="e.g. 12,340 JPY">
+        </div>
+        <div class="form-group">
+            <label for="travel_date">旅費精算対象日　Date of Travel</label>
+            <input type="text" id="travel_date" placeholder="e.g. 2026/08/17">
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="message">用件・伝言の具体的内容　Description / Message</label>
+        <textarea id="message" rows="2" placeholder="Details of your inquiry..."></textarea>
+    </div>
+    <button id="create">連絡シート（A4）を印刷する　Print Inquiry Sheet (A4)</button>
+</div>
+
+<script>
+/* 印刷用ウィンドウを開いて即印刷 */
+document.getElementById('create').addEventListener('click', () => {
+    const toName = document.getElementById('to_name').value || '＿＿＿＿＿＿＿＿';
+    const byName = document.getElementById('by_name').value || '＿＿＿＿＿＿＿＿';
+    const extNum = document.getElementById('ext_num').value ? `(Ext. ${document.getElementById('ext_num').value})` : '';
+    const appNum = document.getElementById('app_num').value;
+    const amount = document.getElementById('amount').value;
+    const travelDate = document.getElementById('travel_date').value;
+    const message = document.getElementById('message').value.replace(/\n/g, '<br>') || '＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿';
+
+    // 現在の日付を取得
+    const now = new Date();
+    const pad = n => n.toString().padStart(2, '0');
+    const currentDate = `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+    // 用件チェックボックスの処理
+    const checkboxes = document.querySelectorAll('input[name="action"]');
+    let actionHtml = '';
+    checkboxes.forEach(cb => {
+        const checked = cb.checked ? '☑' : '□';
+        actionHtml += `<span style="margin-right: 20px; font-size: 16px;">${checked} ${cb.value}</span>`;
+    });
+
+    const isSeisanChecked = document.getElementById('chk_seisan').checked;
+    const isKeihiChecked = document.getElementById('chk_keihi').checked;
+    let seisanSectionHtml = '';
+
+    // 【改良】チェックボックスの状態に応じて出力する表の構成を変える
+    if (isSeisanChecked) {
+        // 旅費精算の件：3段のフルサイズ表
+        seisanSectionHtml = `
+            <div class="section-title">■ 経費及び詳細　Expense & Application Details</div>
+            <table class="grid-table">
+                <tr>
+                    <th>申請番号</th>
+                    <td style="font-size: 18px; font-weight: bold;">${appNum || '＿＿＿＿＿＿＿＿＿＿'}</td>
+                </tr>
+                <tr>
+                    <th>精算金額</th>
+                    <td style="font-size: 18px; font-weight: bold;">${amount || '＿＿＿＿＿＿＿＿'}円</td>
+                </tr>
+                <tr>
+                    <th>旅費精算対象日</th>
+                    <td>${travelDate || '＿＿＿＿/＿＿/＿＿'}</td>
+                </tr>
+            </table>
+        `;
+    } else if (isKeihiChecked) {
+        // 経費精算の件：日付を除いた2段のスマートな表
+        seisanSectionHtml = `
+            <div class="section-title">■ 経費及び詳細　Expense & Application Details</div>
+            <table class="grid-table">
+                <tr>
+                    <th>申請番号</th>
+                    <td style="font-size: 18px; font-weight: bold;">${appNum || '＿＿＿＿＿＿＿＿＿＿'}</td>
+                </tr>
+                <tr>
+                    <th>精算金額</th>
+                    <td style="font-size: 18px; font-weight: bold;">${amount || '＿＿＿＿＿＿＿＿'}円</td>
+                </tr>
+            </table>
+        `;
+    }
+
+    const printWindow = window.open('', '_blank');
+    
+    printWindow.document.write(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Inquiry_Sheet_${byName}</title>
+<style>
+@page {
+    size: A4 portrait;
+    margin: 15mm;
+}
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    background-color: #ffffff;
+    color: #000000;
+    line-height: 1.8;
+}
+.sheet-container {
+    border: 2px solid #000;
+    padding: 25px;
+    box-sizing: border-box;
+    height: 255mm;
+    display: flex;
+    flex-direction: column;
+}
+.header-table {
+    width: 100%;
+    margin-bottom: 25px;
+    border-collapse: collapse;
+}
+.header-table td {
+    vertical-align: bottom; /* 下揃えにして高さを統一 */
+    font-size: 16px;       /* ToとFromの文字サイズを少し小さく調整 */
+}
+.title {
+    font-size: 26px;
+    font-weight: bold;
+    text-align: center;
+    letter-spacing: 4px;
+    border-bottom: 3px double #000;
+    padding-bottom: 10px;
+    margin-bottom: 30px;
+}
+.section-title {
+    font-size: 16px;
+    font-weight: bold;
+    background-color: #f2f2f2;
+    padding: 6px 12px;
+    border: 1px solid #000;
+    margin-bottom: 10px;
+}
+.action-box {
+    border: 1px solid #000;
+    padding: 15px;
+    margin-bottom: 25px;
+    border-radius: 4px;
+}
+.grid-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 25px;
+}
+.grid-table th, .grid-table td {
+    border: 1px solid #000;
+    padding: 12px;
+    text-align: left;
+    font-size: 16px;
+}
+.grid-table th {
+    background-color: #f9f9f9;
+    width: 25%;
+}
+.message-box {
+    flex-grow: 1;
+    border: 1px solid #000;
+    padding: 15px;
+    font-size: 16px;
+    min-height: 250px;
+}
+.footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-top: 8px;
+    padding: 0 4px;
+}
+.footer-date {
+    font-size: 14px;
+    color: #444;
+}
+.company-name {
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+@media print {
+    .section-title { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .grid-table th { background-color: #f9f9f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+
+<div class="sheet-container">
+    <div class="title">業務連絡シート　INQUIRY</div>
+    
+    <table class="header-table">
+        <tr>
+            <td style="width: 50%;"><strong>To:</strong> ${toName}</td>
+            <td style="text-align: right; width: 50%;"><strong>From:</strong> ${byName} ${extNum}</td>
+        </tr>
+    </table>
+
+    <div class="section-title">■ 用件種別　Inquiry Type</div>
+    <div class="action-box">
+        ${actionHtml}
+    </div>
+
+    <!-- 自動判定で出現・消滅、さらに2段/3段が切り替わるエリア -->
+    ${seisanSectionHtml}
+
+    <div class="section-title">■ 用件・伝言内容　Description / Message</div>
+    <div class="message-box">
+        ${message}
+    </div>
+</div>
+
+<div class="footer-row">
+    <div class="footer-date">Created on: ${currentDate}</div>
+    <div class="company-name">●● Co., Ltd.</div>
+</div>
+
+</body>
+</html>
+`);
+
+    printWindow.document.close();
+    printWindow.print();
+    printWindow.close();
+});
+</script>
+
+</body>
+</html>
