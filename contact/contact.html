@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>提出催促付箋（A4・10枚設定）</title>
+    <style>
+        /* 印刷・画面共通の基本リセット */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        /* A4印刷エリアの設定 */
+        .page {
+            width: 210mm;
+            height: 297mm;
+            margin: 0 auto;
+            background: #fff;
+            padding: 10mm 15mm; /* 上下左右の余白 */
+            display: grid;
+            /* カレンダーの縦長幅に馴染むよう、2列×5行（計10枚）で配置 */
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(5, 1fr);
+            gap: 8mm 12mm; /* 付箋同士の隙間（カット線になります） */
+        }
+
+        /* 付箋1枚のスタイル */
+        .sticky-note {
+            border: 1px dashed #999; /* 切り取り用の点線 */
+            background-color: #fffde7; /* 付箋らしい薄い黄色 */
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
+        }
+
+        /* 上部の警告ヘッダー */
+        .note-header {
+            border-bottom: 2px solid #e53935;
+            color: #e53935;
+            font-size: 11px;
+            font-weight: bold;
+            padding-bottom: 3px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .note-header .title {
+            font-size: 13px;
+        }
+
+        /* 各入力項目（テーブル形式できれいに揃える） */
+        .note-body {
+            width: 100%;
+            border-collapse: collapse;
+            flex-grow: 1;
+        }
+        .note-body tr {
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .note-body tr:last-child {
+            border-bottom: none;
+        }
+        .note-body th, .note-body td {
+            font-size: 11px;
+            padding: 4px 2px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        .note-body th {
+            color: #555;
+            width: 65px;
+            font-weight: 600;
+        }
+        /* 手書き用の点線 */
+        .note-body td {
+            color: #333;
+            border-bottom: 1px dotted #bbb; 
+        }
+
+        /* 下部のメッセージ */
+        .note-footer {
+            font-size: 10px;
+            color: #666;
+            text-align: right;
+            margin-top: 4px;
+            font-weight: bold;
+        }
+
+        /* 印刷時の最適化設定 */
+        @media print {
+            body {
+                background: none;
+                padding: 0;
+            }
+            .page {
+                margin: 0;
+                box-shadow: none;
+                page-break-after: always;
+            }
+            /* 印刷時に背景色（付箋の黄色）を強制的に出す設定 */
+            .sticky-note {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="page">
+        <!-- これが1枚分のブロックです。下記を10個並べています -->
+        <script>
+            // 10枚分自動で生成して出力します
+            for (let i = 0; i < 8; i++) {
+                document.write(`
+                    <div class="sticky-note">
+                        <div class="note-header">
+                            <span class="title">⚠️ 領収書未提出のご連絡≪控≫</span>
+                            <span>支払予定日：&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                        </div>
+                        <table class="note-body">
+                            <tr>
+                                <th>申請番号</th>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <th>氏名</th>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <th>職員コード</th>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <th>金額</th>
+                                <td>¥</td>
+                            </tr>
+                            <tr style="height: 90px; vertical-align: top;"><th>摘要</th><td></td></tr>
+                        </table>
+                        <div class="note-footer"></div>
+                        
+                    </div>
+                `);
+            }
+        </script>
+    </div>
+
+</body>
+</html>

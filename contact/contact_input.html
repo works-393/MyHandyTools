@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>領収書催促付箋 入力・出力システム</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            padding: 20px;
+        }
+
+        /* 入力フォーム */
+        #inputArea {
+            max-width: 600px;
+            margin: 0 auto 30px auto;
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        #inputArea h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 8px;
+            color: #007bff;
+        }
+        .form-group {
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+        }
+        .form-group label {
+            width: 100px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .form-group input, .form-group textarea {
+            flex-grow: 1;
+            padding: 8px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .form-group textarea {
+            resize: vertical;
+            height: 60px;
+        }
+        .counter-info {
+            font-size: 14px;
+            margin: 15px 0;
+            font-weight: bold;
+            color: #555;
+            text-align: right;
+        }
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+        }
+        button {
+            padding: 10px 25px;
+            font-size: 15px;
+            font-weight: bold;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        button:hover {
+            opacity: 0.85;
+        }
+        .btn-next { background-color: #28a745; color: white; }
+        .btn-output { background-color: #007bff; color: white; }
+
+        /* 印刷コンテナ */
+        #printArea {
+            background-color: #f0f2f5;
+            padding-top: 10px;
+        }
+        .page {
+            width: 210mm;
+            height: 297mm;
+            margin: 0 auto 20px auto;
+            background: #fff;
+            padding: 10mm 15mm;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(5, 1fr);
+            gap: 8mm 12mm;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            page-break-after: always;
+        }
+
+        /* 付箋スタイル */
+        .sticky-note {
+            border: 1px dashed #999;
+            background-color: #fffde7;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .note-header {
+            border-bottom: 2px solid #e53935;
+            color: #e53935;
+            font-size: 11px;
+            font-weight: bold;
+            padding-bottom: 3px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .note-header .title { font-size: 13px; }
+        
+        .note-body {
+            width: 100%;
+            border-collapse: collapse;
+            flex-grow: 1;
+        }
+        .note-body tr { border-bottom: 1px solid #e0e0e0; }
+        .note-body tr:last-child { border-bottom: none; }
+        .note-body th, .note-body td {
+            font-size: 11px;
+            padding: 4px 2px;
+            text-align: left;
+            vertical-align: top;
+        }
+        .note-body th {
+            color: #555;
+            width: 70px;
+            font-weight: 600;
+        }
+        .note-body td {
+            color: #111;
+            word-break: break-all;
+            white-space: pre-wrap;
+        }
+        .note-footer {
+            font-size: 10px;
+            color: #666;
+            text-align: right;
+            margin-top: 4px;
+            font-weight: bold;
+        }
+        .preview-title {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #666;
+        }
+
+        /* 印刷設定 */
+        @media print {
+            #inputArea, .preview-title {
+                display: none !important;
+            }
+            body {
+                background: none;
+                padding: 0;
+            }
+            .page {
+                margin: 0;
+                box-shadow: none;
+            }
+            .sticky-note {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 入力フォームエリア -->
+    <div id="inputArea">
+        <h2>催促付箋 データ入力</h2>
+        <div class="form-group">
+            <label for="f_deadline">支払日</label>
+            <input type="text" id="f_deadline" placeholder="例: 4/30">
+        </div>
+        <div class="form-group">
+            <label for="f_id">申請番号</label>
+            <input type="text" id="f_id" placeholder="例: A-1023">
+        </div>
+          <div class="form-group">
+            <label for="f_code">職員コード</label>
+            <input type="text" id="f_code" placeholder="例: E9999">
+        </div>
+        <div class="form-group">
+            <label for="f_name">氏名</label>
+            <input type="text" id="f_name" placeholder="例: 山田 太郎">
+        </div>
+      
+        <div class="form-group">
+            <label for="f_amount">金額</label>
+            <input type="text" id="f_amount" placeholder="例: 5,480">
+        </div>
+        <div class="form-group">
+            <label for="f_summary">摘要</label>
+            <textarea id="f_summary" placeholder="例: カートリッジインク（キヤノン BCI-381）等"></textarea>
+        </div>
+        
+        <div class="counter-info">
+            現在の入力件数: <span id="currentCount">0</span> 件
+        </div>
+
+        <div class="btn-group">
+            <button class="btn-next" onclick="addNote()">Next (次の件数へ)</button>
+            <button class="btn-output" onclick="outputNotes()">Output (印刷する)</button>
+        </div>
+    </div>
+
+    <div class="preview-title">【以下は印刷プレビュー（入力すると自動で増えます）】</div>
+    <div id="printArea"></div>
+
+    <script>
+        let noteDataList = [];
+
+        function addNote() {
+            const deadline = document.getElementById('f_deadline').value;
+            const id = document.getElementById('f_id').value;
+            const name = document.getElementById('f_name').value;
+            const code = document.getElementById('f_code').value;
+            const amount = document.getElementById('f_amount').value;
+            const summary = document.getElementById('f_summary').value;
+
+            noteDataList.push({ deadline, id, name, code, amount, summary });
+            document.getElementById('currentCount').textContent = noteDataList.length;
+
+            renderPages();
+
+            document.getElementById('f_id').value = '';
+            document.getElementById('f_name').value = '';
+            document.getElementById('f_code').value = '';
+            document.getElementById('f_amount').value = '';
+            document.getElementById('f_summary').value = '';
+            document.getElementById('f_id').focus();
+        }
+
+        function renderPages() {
+            const printArea = document.getElementById('printArea');
+            printArea.innerHTML = '';
+            let pageDiv = null;
+
+            noteDataList.forEach((data, index) => {
+                if (index % 10 === 0) {
+                    pageDiv = document.createElement('div');
+                    pageDiv.className = 'page';
+                    printArea.appendChild(pageDiv);
+                }
+
+                // 修正箇所：テンプレート文字列内の改行を安全に
+                const noteHtml = '<div class="sticky-note">' +
+                    '<div class="note-header">' +
+                        '<span class="title">⚠️ 領収書未提出のご連絡</span>' +
+                        '<span>支払日：' + escapeHtml(data.deadline) + '</span>' +
+                    '</div>' +
+                    '<table class="note-body">' +
+                        '<tr><th>申請番号</th><td>' + escapeHtml(data.id) + '</td></tr>' +
+                        '<tr><th>職員コード</th><td>' + escapeHtml(data.code) + '</td></tr>' +
+                        '<tr><th>氏名</th><td>' + escapeHtml(data.name) + '</td></tr>' +
+                        '<tr><th>金額</th><td>¥ ' + escapeHtml(data.amount) + '</td></tr>' +
+                        '<tr><th>摘要</th><td>' + escapeHtml(data.summary) + '</td></tr>' +
+                    '</table>' +
+                    '<div class="note-footer">経理担当：中野まで大至急ご提出ください。</div>' +
+                '</div>';
+                
+                pageDiv.innerHTML += noteHtml;
+            });
+        }
+
+        function outputNotes() {
+            if (noteDataList.length === 0) {
+                alert('まだデータが入力されていません。先に「Next」を押して登録してください。');
+                return;
+            }
+            window.print();
+        }
+
+        // 修正箇所：完全に安全な1行書きに修正
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
