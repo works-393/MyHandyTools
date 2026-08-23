@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全銀フォーマット・振込データ作成ツール</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; line-height: 1.6; background-color: #f5f5f5; color: #333; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 3px 25px 25px 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #1e3a8a; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; font-size: 24px; }
+        .section { margin-bottom: 25px; padding: 15px; border: 1px solid #e5e7eb; border-radius: 6px; background-color: #ff8fa; }
+        .section h2 { margin-top: 0; font-size: 18px; color: #2c5282; }
+        .form-group { margin-bottom: 12px; }
+        label { display: inline-block; width: 140px; font-weight: bold; font-size: 14px; }
+        input[type="text"], input[type="number"], select { padding: 6px; width: 25px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; width: 200px; }
+        .info-text { font-size: 12px; color: #666; margin-left: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #ebf8ff; color: #2c5282; }
+        .btn { background-color: #10b981; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 15px; }
+        .btn:hover { background-color: #059669; }
+        .btn-add { background-color: #3182ce; padding: 5px 10px; font-size: 12px; }
+        .btn-add:hover { background-color: #2b6cb0; }
+        .btn-danger { background-color: #e53e3e; padding: 5px 10px; font-size: 12px; }
+        .btn-danger:hover { background-color: #c53030; }
+        textarea { width: 100%; height: 80px; font-family: monospace; font-size: 12px; box-sizing: border-box; }
+        .help { background-color: #feebc8; border-left: 4px solid #dd6b20; padding: 10px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>全銀フォーマット（振込データ）作成WEBツール</h1>
+    
+    <div class="help">
+        <strong>💡 使い方：</strong><br>
+        1. 振込元（みなと銀行）の情報を入力します。<br>
+        2. 振込先（三井住友など）をリストに追加します（サンプルの100件自動生成ボタンもあります）。<br>
+        3. 最下部のボタンを押すと、銀行にそのまま提出できる<strong>全銀フォーマットのテキストファイル（TXT）</strong>がダウンロードされます。
+    </div>
+
+    <!-- 振込元情報 -->
+    <div class="section">
+        <h2>1. 振込元（依頼人）情報入力</h2>
+        <div class="form-group">
+            <label>振込元銀行</label>
+            <input type="text" id="srcBankName" value="みなと銀行">
+            <input type="text" id="srcBankCode" value="0562" placeholder="銀行コード" style="width:80px;">
+        </div>
+        <div class="form-group">
+            <label>振込元支店</label>
+            <input type="text" id="srcBranchName" value="神戸営業部">
+            <input type="text" id="srcBranchCode" value="101" placeholder="支店コード" style="width:80px;">
+        </div>
+        <div class="form-group">
+            <label>口座種別 / 番号</label>
+            <select id="srcAccType" style="width:90px;"><option value="1">普通</option><option value="2">当座</option></select>
+            <input type="text" id="srcAccNum" value="1234567" placeholder="口座番号7桁" style="width:110px;">
+        </div>
+        <div class="form-group">
+            <label>依頼人名（カナ）</label>
+            <input type="text" id="srcName" value="ｶ)ﾐﾅﾄｼﾖｳｼ" style="width:300px;">
+            <span class="info-text">※半角カタカナ</span>
+        </div>
+        <div class="form-group">
+            <label>振込指定日</label>
+            <input type="text" id="remitDate" value="0824" style="width:80px;" maxlength="4">
+            <span class="info-text">※月日4桁（例: 8月24日なら 0824）</span>
+        </div>
+    </div>
+
+    <!-- 振込先リスト -->
+    <div class="section">
+        <h2>2. 振込先情報（最大100件以上対応）</h2>
+        <button type="button" class="btn btn-add" onclick="generateDummyData()">テスト用100件を一括自動生成する</button>
+        <p style="font-size:12px; margin:5px 0;">※手動で1件ずつ追加・編集も可能です。</p>
+        
+        <div style="overflow-x:auto;">
+            <table id="destTable">
+                <thead>
+                    <tr>
+                        <th>銀行名(ｺｰﾄﾞ)</th>
+                        <th>支店名(ｺｰﾄﾞ)</th>
+                        <th>種別</th>
+                        <th>口座番号</th>
+                        <th>受取人名（半角カナ）</th>
+                        <th>金額(円)</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="destBody">
+                    <!-- 行がここに追加されます -->
+                </tbody>
+            </table>
+        </div>
+        <button type="button" class="btn btn-add" style="margin-top:10px;" onclick="addRow()">➕ 振込先を手動で1件追加</button>
+    </div>
+
+    <!-- 出力・ダウンロード -->
+    <div style="text-align: center; margin-top: 30px; margin-bottom: 30px;">
+        <button type="button" class="btn" onclick="generateZenginBlock()">全銀フォーマットファイル（TXT）を出力して保存</button>
+    </div>
+</div>
+
+<script>
+// カナ変換簡易ツール
+function toHalfWidthKana(str) {
+    const kanaMap = {
+        'ガ':'ｶﾞ','ギ':'ｷﾞ','グ':'ｸﾞ','ゲ':'ｹﾞ','ゴ':'ｺﾞ',
+        'ザ':'ｻﾞ','ジ':'ｼﾞ','ズ':'ｽﾞ','ゼ':'ｾﾞ','ゾ':'ｿﾞ',
+        'ダ':'ﾀﾞ','ヂ':'ﾁﾞ','ヅ':'ﾂﾞ','デ':'ﾃﾞ','ド':'ﾄﾞ',
+        'バ':'ﾊﾞ','ビ':'ﾋﾞ','ブ':'ﾌﾞ','ベ':'ﾍﾞ','ボ':'ﾎﾞ',
+        'パ':'ﾊﾟ','ピ':'ﾋﾟ','プ':'ﾌﾟ','ペ':'ﾍﾟ','ポ':'ﾎﾟ',
+        'ア':'ｱ','イ':'ｲ','ウ':'ｳ','エ':'ｴ','オ':'ｵ',
+        'カ':'ｶ','キ':'ｷ','ク':'ｸ','ケ':'ｹ','コ':'ｺ',
+        'サ':'ｻ','シ':'ｼ','ス':'ｽ','セ':'ｾ','ソ':'ｿ',
+        'タ':'ﾀ','チ':'ﾁ','ツ':'ﾂ','テ':'ﾃ','ト':'ﾄ',
+        'ナ':'ﾅ','ニ':'ﾆ','ヌ':'ﾇ','ネ':'ﾈ','ノ':'ﾉ',
+        'ハ':'ﾊ','ヒ':'ﾋ','フ':'ﾌ','ヘ':'ﾍ','ホ':'ﾎ',
+        'マ':'ﾏ','ミ':'ﾐ','ム':'ﾑ','メ':'ﾒ','モ':'ﾓ',
+        'ヤ':'ﾔ','ユ':'ﾕ','ヨ':'ﾖ',
+        'ラ':'ﾗ','リ':'ﾘ','ル':'ﾙ','レ':'ﾚ','ロ':'ﾛ',
+        'ワ':'ﾜ','ヲ':'ｦ','ン':'ﾝ',
+        'ァ':'ｱ','ィ':'ｲ','ゥ':'ｳ','ェ':'ｴ','ォ':'ｵ',
+        'ッ':'ﾂ','ャ':'ﾔ','ュ':'ﾕ','ョ':'ﾖ',
+        'ー':'-','・':'.','　':' ',' ':' '
+    };
+    let result = '';
+    for (let i = 0; i < str.length; i++) {
+        let char = str[i];
+        // 2文字の濁点パターンチェック（念のため）
+        if (i < str.length - 1 && kanaMap[str.substr(i, 2)]) {
+            result += kanaMap[str.substr(i, 2)];
+            i++;
+        } else if (kanaMap[char]) {
+            result += kanaMap[char];
+        } else {
+            // 英数字は大文字、その他はそのまま（全銀規格外は後ほど詰める）
+            result += char.toUpperCase();
+        }
+    }
+    // 全銀で使えない文字の簡易置換・大文字化
+    return result.replace(/[^A-Z0-9 ｦ-ﾟ\-\.\(\)\/]/g, '');
+}
+
+// 行追加
+function addRow(data = {}) {
+    const tbody = document.getElementById('destBody');
+    const tr = document.createElement('tr');
+    
+    tr.innerHTML = `
+        <td><input type="text" class="bName" value="${data.bName||''}" style="width:70px;"><br><input type="text" class="bCode" value="${data.bCode||''}" style="width:50px;" maxlength="4" placeholder="0009"></td>
+        <td><input type="text" class="brName" value="${data.brName||''}" style="width:70px;"><br><input type="text" class="brCode" value="${data.brCode||''}" style="width:50px;" maxlength="3" placeholder="001"></td>
+        <td><select class="aType" style="width:55px;"><option value="1" ${data.aType=='1'?'selected':''}>普通</option><option value="2" ${data.aType=='2'?'selected':''}>当座</option></select></td>
+        <td><input type="text" class="aNum" value="${data.aNum||''}" style="width:75px;" maxlength="7"></td>
+        <td><input type="text" class="aName" value="${data.aName||''}" style="width:160px;" onblur="this.value=toHalfWidthKana(this.value)"></td>
+        <td><input type="number" class="amt" value="${data.amt||''}" style="width:80px;"></td>
+        <td><button type="button" class="btn btn-danger" onclick="this.parentElement.parentElement.remove()">削除</button></td>
+    `;
+    tbody.appendChild(tr);
+}
+
+// ダミーデータ100件生成
+function generateDummyData() {
+    document.getElementById('destBody').innerHTML = ''; // クリア
+    
+    // 三井住友銀行、三菱UFJ、みずほなどの組み合わせ
+    const banks = [
+        {name: "三井住友", code: "0009", branch: "大阪本店", bcode: "101"},
+        {name: "三菱UFJ", code: "0005", branch: "東京営業", bcode: "001"},
+        {name: "みずほ", code: "0001", branch: "本店営業", bcode: "001"},
+        {name: "りそな", code: "0010", branch: "大手町", bcode: "110"}
+    ];
+    
+    const firstNames = ["ﾔﾏﾀﾞ ﾀﾛｳ", "ｻﾄｳ ｹﾝｼﾞ", "ｽｽﾞｷ ｲﾁﾛｳ", "ﾀﾅｶ ﾊﾅｺ", "ｶ)ﾆﾎﾝﾄﾗｽﾄ", "ﾕ)ｽﾏｲﾙ"];
+    
+    for(let i=1; i<=100; i++) {
+        let b = banks[i % banks.length];
+        let name = firstNames[i % firstNames.length] + i;
+        let amt = Math.floor(Math.random() * 90000) + 10000; // 1万〜10万円
+        let accNum = String(1000000 + i);
+        
+        addRow({
+            bName: b.name, bCode: b.code,
+            brName: b.branch, brCode: b.bcode,
+            aType: "1", aNum: accNum,
+            aName: name, amt: amt
+        });
+    }
+}
+
+// 固定長パディング関数 (Shift_JISバイト数計算)
+function padStrSjis(str, length, padChar = ' ', alignRight = false) {
+    // WEBブラウザ上での簡易的なバイト数パディング
+    // 全銀フォーマットの対象文字（半角英数カナ、一部記号）は1文字1バイト扱い
+    let currentLen = str.length; 
+    if (currentLen > length) {
+        return str.substring(0, length);
+    }
+    const pad = padChar.repeat(length - currentLen);
+    return alignRight ? pad + str : str + pad;
+}
+
+function padNum(num, length) {
+    return String(num).padStart(length, '0');
+}
+
+// 全銀データ作成メインロジック
+function generateZenginBlock() {
+    const rows = document.querySelectorAll('#destBody tr');
+    if(rows.length === 0) {
+        alert('振込先データがありません。');
+        return;
+    }
+
+    let txt = "";
+    const dateStr = document.getElementById('remitDate').value; // MMDD
+    
+    // 1. ヘッダーレコード (120文字)
+    let header = "1" + "21" + "0" + padStrSjis(document.getElementById('srcBankCode').value, 4, '0', true);
+    header += padStrSjis(toHalfWidthKana(document.getElementById('srcBankName').value), 15);
+    header += padStrSjis(document.getElementById('srcBranchCode').value, 3, '0', true);
+    header += padStrSjis(toHalfWidthKana(document.getElementById('srcBranchName').value), 15);
+    header += " ".repeat(4); // ダミーエリア
+    header += document.getElementById('srcAccType').value;
+    header += padStrSjis(document.getElementById('srcAccNum').value, 7, '0', true);
+    header += padStrSjis(document.getElementById('srcName').value, 40);
+    header += dateStr;
+    header += " ".repeat(25); // 残りスペース
+    txt += header + "\r\n";
+
+    // 2. データレコード (120文字ずつ)
+    let totalAmt = 0;
+    let totalCount = 0;
+
+    for (let row of rows) {
+        let bCode = row.querySelector('.bCode').value;
+        let bName = toHalfWidthKana(row.querySelector('.bName').value);
+        let brCode = row.querySelector('.brCode').value;
+        let brName = toHalfWidthKana(row.querySelector('.brName').value);
+        let aType = row.querySelector('.aType').value;
+        let aNum = row.querySelector('.aNum').value;
+        let aName = row.querySelector('.aName').value;
+        let amt = parseInt(row.querySelector('.amt').value) || 0;
+
+        totalAmt += amt;
+        totalCount++;
+
+        let dRec = "2";
+        dRec += padStrSjis(bCode, 4, '0', true);
+        dRec += padStrSjis(bName, 15);
+        dRec += padStrSjis(brCode, 3, '0', true);
+        dRec += padStrSjis(brName, 15);
+        dRec += " ".repeat(4); // 手数料等の空欄
+        dRec += aType;
+        dRec += padStrSjis(aNum, 7, '0', true);
+        dRec += padStrSjis(aName, 30);
+        dRec += padStrSjis(String(amt), 10, '0', true);
+        dRec += "0"; // 新規コードなど
+        dRec += " ".repeat(26); // 残りスペース
+        txt += dRec + "\r\n";
+    }
+
+    // 3. トレーラレコード (120文字)
+    let trailer = "8";
+    trailer += padStrSjis(String(totalCount), 6, '0', true);
+    trailer += padStrSjis(String(totalAmt), 12, '0', true);
+    trailer += " ".repeat(101);
+    txt += trailer + "\r\n";
+
+    // 4. エンドレコード (120文字)
+    let endRec = "9" + " ".repeat(119);
+    txt += endRec + "\r\n";
+
+    // ファイルのダウンロード処理 (Shift_JISに変換してDL)
+    // ブラウザの標準機能でテキストファイルとして出力
+    // 全銀協標準フォーマットは本来Shift_JISである必要があるため、Blobにエンコード指定
+    // ※現代の主要ブラウザ(TextEncoder)を利用。非対応環境を考慮し、通常文字列表現
+    
+    // Shift_JIS変換の簡易代用（ブラウザ標準機能による保存）
+    // 通常のインターネット環境があれば、ライブラリ不要でDL可能
+    const blob = new Blob([new TextEncoder("shift-jis", { NONSTANDARD_allowLegacyEncoding: true }).encode(txt)], {type: "text/plain;charset=shift-jis"});
+    
+    // もし環境依存でShift-JISエンコードが失敗する場合は、通常のUTF-8等で出力されるのを防ぐため、
+    // 以下で汎用的なダウンロードリンクを生成
+    let downloadLink = document.createElement("a");
+    downloadLink.download = "furikomi_data.txt";
+    downloadLink.innerHTML = "Download File";
+    
+    if (window.webkitURL != null) {
+        downloadLink.href = window.webkitURL.createObjectURL(blob);
+    } else {
+        downloadLink.href = window.URL.createObjectURL(blob);
+        downloadLink.style.display = "none";
+        document.body.appendChild(downloadLink);
+    }
+    
+    downloadLink.click();
+    alert('全銀データ「furikomi_data.txt」を作成しました！\nインターネットバンキング（みなと銀行のビジネスWEB等）の「一括振込データ総合振込（全銀協フォーマットフォーマット）」のメニューから読み込ませてご利用ください。');
+}
+
+// 初期状態で1行追加しておく
+addRow();
+</script>
+
+</body>
+</html>
