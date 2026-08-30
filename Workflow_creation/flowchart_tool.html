@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>業務フローチャート作成ツール</title>
+    <!-- SheetJS (XLSX) for Excel Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Mermaid.js for Flowchart rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.2.4/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        h1 {
+            font-size: 24px;
+            color: #2c3e50;
+            border-left: 5px solid #3498db;
+            padding-left: 10px;
+            margin-bottom: 20px;
+        }
+        p.description {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        .flow-step {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #fcfcfc;
+            border: 1px solid #e0e0e0;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+        }
+        .step-number {
+            font-weight: bold;
+            color: #3498db;
+            min-width: 30px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .btn-add { background-color: #2ecc71; color: white; }
+        .btn-add:hover { background-color: #27ae60; }
+        .btn-excel { background-color: #1f7246; color: white; margin-left: 10px; }
+        .btn-excel:hover { background-color: #175635; }
+        .btn-chart { background-color: #3498db; color: white; margin-left: 10px; }
+        .btn-chart:hover { background-color: #2980b9; }
+        .btn-delete { background-color: #e74c3c; color: white; padding: 6px 12px; font-size: 12px; }
+        .btn-delete:hover { background-color: #c0392b; }
+        .actions {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        #chart-container {
+            margin-top: 30px;
+            padding: 20px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            display: none;
+        }
+        .footer-note {
+            margin-top: 40px;
+            font-size: 12px;
+            color: #bdc3c7;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>業務フロー作成ツール</h1>
+    <p class="description">ステップを入力してボタンを押すだけで、自分専用の綺麗な「Excelマニュアル」や「フローチャート（図）」が瞬時に出来上がります。</p>
+    
+    <div id="steps-list">
+        <!-- 初期ステップ -->
+        <div class="flow-step">
+            <span class="step-number">1</span>
+            <input type="text" class="step-input" value="LeySer（レーザー）の勘定科目別元帳を開く">
+            <button class="btn btn-delete" onclick="removeStep(this)">削除</button>
+        </div>
+        <div class="flow-step">
+            <span class="step-number">2</span>
+            <input type="text" class="step-input" value="勘定科目に「未払金」を指定し、期間を絞り込んで検索する">
+            <button class="btn btn-delete" onclick="removeStep(this)">削除</button>
+        </div>
+        <div class="flow-step">
+            <span class="step-number">3</span>
+            <input type="text" class="step-input" value="右スクロールの壁を越え、使わない古い業者マスターに「停止」チェックを入れる">
+            <button class="btn btn-delete" onclick="removeStep(this)">削除</button>
+        </div>
+        <div class="flow-step">
+            <span class="step-number">4</span>
+            <input type="text" class="step-input" value="画面内の「Excel出力」ボタンを押し、データをエクスポートする">
+            <button class="btn btn-delete" onclick="removeStep(this)">削除</button>
+        </div>
+    </div>
+
+    <button class="btn btn-add" onclick="addStep()">＋ ステップを追加</button>
+
+    <div class="actions">
+        <button class="btn btn-chart" onclick="generateFlowchart()">📊 フローチャート(図)を生成</button>
+        <button class="btn btn-excel" onclick="exportToExcel()">🍏 Excel形式で書き出す</button>
+    </div>
+
+    <div id="chart-container">
+        <h3>生成されたフローチャート</h3>
+        <div id="graphDiv" class="mermaid"></div>
+    </div>
+    
+    <div class="footer-note">
+        ※このツールはあなたのパソコン内（ブラウザ）だけで動くため、入力したデータが外部に送信されることはありません。
+    </div>
+</div>
+
+<script>
+    mermaid.initialize({ startOnLoad: false });
+
+    function renumberSteps() {
+        const steps = document.querySelectorAll('.flow-step');
+        steps.forEach((step, index) => {
+            step.querySelector('.step-number').innerText = index + 1;
+        });
+    }
+
+    function addStep() {
+        const list = document.getElementById('steps-list');
+        const stepCount = list.querySelectorAll('.flow-step').length + 1;
+        
+        const div = document.createElement('div');
+        div.className = 'flow-step';
+        div.innerHTML = `
+            <span class="step-number">${stepCount}</span>
+            <input type="text" class="step-input" placeholder="行う作業を入力してください...">
+            <button class="btn btn-delete" onclick="removeStep(this)">削除</button>
+        `;
+        list.appendChild(div);
+    }
+
+    function removeStep(button) {
+        button.parentElement.remove();
+        renumberSteps();
+    }
+
+    function getStepsData() {
+        const inputs = document.querySelectorAll('.step-input');
+        const data = [];
+        inputs.forEach((input, index) => {
+            if(input.value.trim() !== "") {
+                data.push({
+                    step: index + 1,
+                    text: input.value.trim()
+                });
+            }
+        });
+        return data;
+    }
+
+    function exportToExcel() {
+        const data = getStepsData();
+        if(data.length === 0) {
+            alert("ステップが入力されていません。");
+            return;
+        }
+
+        // Excel用データ作成
+        const ws_data = [["ステップ番号", "業務プロセス・操作手順"]];
+        data.forEach(item => {
+            ws_data.push([item.step, item.text]);
+        });
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(ws_data);
+        
+        // 列幅の調整
+        ws['!cols'] = [{ wch: 15 }, { wch: 60 }];
+
+        XLSX.utils.book_append_sheet(wb, ws, "業務フロー");
+        
+        // ファイルダウンロード
+        XLSX.writeFile(wb, "業務マニュアル_フロー.xlsx");
+    }
+
+    async function generateFlowchart() {
+        const data = getStepsData();
+        if(data.length === 0) {
+            alert("ステップが入力されていません。");
+            return;
+        }
+
+        const container = document.getElementById('chart-container');
+        const graphDiv = document.getElementById('graphDiv');
+        container.style.display = 'block';
+
+        // Mermaid用の構文を作成
+        let graphDefinition = "graph TD\n";
+        
+        // 特殊文字のクレンジングとノードの作成
+        data.forEach((item, index) => {
+            const cleanText = item.text.replace(/["()]/g, '');
+            graphDefinition += `    step${item.step}["${item.step}. ${cleanText}"]\n`;
+        });
+
+        // 矢印の接続
+        for (let i = 0; i < data.length - 1; i++) {
+            graphDefinition += `    step${data[i].step} --> step${data[i+1].step}\n`;
+        }
+
+        // 一度リセットして再描画
+        graphDiv.removeAttribute('data-processed');
+        graphDiv.innerHTML = graphDefinition;
+        
+        try {
+            await mermaid.run({
+                nodes: [graphDiv]
+            });
+        } catch (e) {
+            console.error("Mermaid描画エラー", e);
+        }
+    }
+</script>
+
+</body>
+</html>

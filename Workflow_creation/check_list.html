@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel貼り付け型・資料チェックリスト</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            margin: 30px;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+        h1 {
+            font-size: 22px;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        p {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-bottom: 20px;
+        }
+        /* 貼り付けエリアのスタイル */
+        #paste-area {
+            width: 100%;
+            height: 90px;
+            padding: 12px;
+            box-sizing: border-box;
+            border: 2px dashed #bdc3c7;
+            border-radius: 6px;
+            background-color: #fff;
+            font-size: 14px;
+            resize: vertical;
+            margin-bottom: 20px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        #paste-area:focus {
+            border-color: #34495e;
+        }
+        
+        /* カウンターボードのスタイル */
+        #counter-board {
+            display: none; /* 初期状態は非表示 */
+            background-color: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .counter-wrapper {
+            display: flex;
+            gap: 30px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .counter-item {
+            display: flex;
+            align-items: center;
+        }
+        .counter-label {
+            color: #7f8c8d;
+            margin-right: 8px;
+        }
+        .counter-value {
+            font-size: 22px;
+            color: #2c3e50;
+        }
+        #checked-count {
+            color: #2ec4b6; /* チェック済みの数字を色付け */
+        }
+
+        /* テーブルのスタイル（横幅いっぱいに広げる） */
+        #table-container {
+            display: none; /* 初期状態は非表示 */
+            width: 100%;
+            overflow-x: auto; /* 画面からはみ出る場合はスクロール */
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-radius: 4px;
+            overflow: hidden;
+            white-space: nowrap; /* セル内での意図しない改行を防ぐ */
+        }
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #eeeeee;
+            font-size: 14px;
+        }
+        th {
+            background-color: #34495e;
+            color: #ffffff;
+            font-weight: bold;
+        }
+        .center {
+            text-align: center;
+        }
+        .right {
+            text-align: right; /* 金額用 */
+        }
+        tr:hover {
+            background-color: #fcfcfc;
+        }
+        
+        /* カスタムチェックボックスのスタイル */
+        .check-container {
+            display: inline-block;
+            position: relative;
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+            user-select: none;
+        }
+        .check-container input {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+            height: 0;
+            width: 0;
+        }
+        .checkmark {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 20px;
+            width: 20px;
+            background-color: #fff;
+            border: 2px solid #bdc3c7;
+            border-radius: 3px;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+        }
+        .check-container:hover input ~ .checkmark {
+            border-color: #7f8c8d;
+        }
+        .check-container input:checked ~ .checkmark {
+            background-color: #2ec4b6;
+            border-color: #2ec4b6;
+        }
+        .checkmark:after {
+            content: "";
+            position: absolute;
+            display: none;
+            left: 6px;
+            top: 2px;
+            width: 5px;
+            height: 10px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+        .check-container input:checked ~ .checkmark:after {
+            display: block;
+        }
+        tr:has(input:checked) {
+            background-color: #f5f6f7;
+            color: #95a5a6;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>資料チェック管理表</h1>
+    <p>Excelから「申請番号」〜「金額」までの8列（見出し除く）をコピーして、下の枠内に貼り付けてください。</p>
+
+    <!-- 貼り付け用テキストエリア -->
+    <textarea id="paste-area" placeholder="ここにExcelからコピーしたデータを貼り付けてください..."></textarea>
+
+    <!-- カウント表示エリア -->
+    <div id="counter-board">
+        <div class="counter-wrapper">
+            <div class="counter-item">
+                <span class="counter-label">総件数:</span>
+                <span id="total-count" class="counter-value">0</span>件
+            </div>
+            <div class="counter-item">
+                <span class="counter-label">チェック済み:</span>
+                <span id="checked-count" class="counter-value">0</span>件
+            </div>
+            <div class="counter-item">
+                <span class="counter-label">残り:</span>
+                <span id="remaining-count" class="counter-value">0</span>件
+            </div>
+        </div>
+    </div>
+
+    <!-- 生成されるテーブルのコンテナ -->
+    <div id="table-container">
+        <table id="data-table">
+            <thead>
+                <tr>
+                    <th class="center" style="width: 50px;">確認</th>
+                    <th>申請番号</th>
+                    <th>支払先コード</th>
+                    <th>支払先</th>
+                    <th>区分</th>
+                    <th>部門（部署）</th>
+                    <th>勘定科目</th>
+                    <th>内容</th>
+                    <th class="right">金額</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                <!-- ここに動的に行が追加されます -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const pasteArea = document.getElementById('paste-area');
+        const counterBoard = document.getElementById('counter-board');
+        const tableContainer = document.getElementById('table-container');
+        const tableBody = document.getElementById('table-body');
+        
+        const totalCountEl = document.getElementById('total-count');
+        const checkedCountEl = document.getElementById('checked-count');
+        const remainingCountEl = document.getElementById('remaining-count');
+
+        // チェック状態が変わるたびにカウントを再計算する関数
+        function updateCounts() {
+            const totalRows = tableBody.querySelectorAll('tr').length;
+            const checkedRows = tableBody.querySelectorAll('input[type="checkbox"]:checked').length;
+            const remainingRows = totalRows - checkedRows;
+
+            totalCountEl.textContent = totalRows;
+            checkedCountEl.textContent = checkedRows;
+            remainingCountEl.textContent = remainingRows;
+        }
+
+        pasteArea.addEventListener('input', (e) => {
+            const inputData = e.target.value.trim();
+            
+            if (!inputData) {
+                tableContainer.style.display = 'none';
+                counterBoard.style.display = 'none';
+                tableBody.innerHTML = '';
+                return;
+            }
+
+            const rows = inputData.split(/\r?\n/);
+            tableBody.innerHTML = ''; 
+
+            rows.forEach(rowText => {
+                if (!rowText.trim()) return; 
+
+                const columns = rowText.split('\t');
+
+                // 指定された8項目をマッピング（足りない場合は空文字）
+                const d1 = columns[0] || ''; // 申請番号
+                const d2 = columns[1] || ''; // 支払先コード
+                const d3 = columns[2] || ''; // 支払先
+                const d4 = columns[3] || ''; // 区分
+                const d5 = columns[4] || ''; // 部門（部署）
+                const d6 = columns[5] || ''; // 勘定科目
+                const d7 = columns[6] || ''; // 内容
+                const d8 = columns[7] || ''; // 金額
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="center">
+                        <label class="check-container">
+                            <input type="checkbox">
+                            <span class="checkmark"></span>
+                        </label>
+                    </td>
+                    <td>${escapeHtml(d1)}</td>
+                    <td>${escapeHtml(d2)}</td>
+                    <td>${escapeHtml(d3)}</td>
+                    <td>${escapeHtml(d4)}</td>
+                    <td>${escapeHtml(d5)}</td>
+                    <td>${escapeHtml(d6)}</td>
+                    <td>${escapeHtml(d7)}</td>
+                    <td class="right">${escapeHtml(d8)}</td>
+                `;
+
+                // チェックボックスの変更イベントを監視
+                const checkbox = tr.querySelector('input[type="checkbox"]');
+                checkbox.addEventListener('change', updateCounts);
+
+                tableBody.appendChild(tr);
+            });
+
+            // テーブルとカウンターを表示し、数値を更新
+            tableContainer.style.display = 'block';
+            counterBoard.style.display = 'block';
+            updateCounts();
+        });
+
+        function escapeHtml(string) {
+            if (typeof string !== 'string') return string;
+            return string.replace(/[&'`"<>]/g, function (match) {
+                return {
+                    '&': '&amp;',
+                    "'": '&#x27;',
+                    '`': '&#x60;',
+                    '"': '&quot;',
+                    '<': '&lt;',
+                    '>': '&gt;'
+                }[match];
+            });
+        }
+    </script>
+
+</body>
+</html>
