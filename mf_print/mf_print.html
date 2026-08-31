@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>マネーフォワード一括印刷ツール（両面印刷対応版）</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #333; font-size: 20px; margin-bottom: 20px; }
+        textarea { width: 100%; height: 200px; margin-bottom: 15px; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { background: #0078d4; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #005a9e; }
+        .preview-area { margin-top: 30px; }
+        
+        /* ★ここがポイント：次の人の申請書は、必ず「右ページ（表面）」から開始させる設定 */
+        .report-frame { 
+            width: 100%; 
+            height: 1000px; 
+            border: 1px solid #ddd; 
+            margin-bottom: 20px; 
+            page-break-before: right; /* 両面印刷時に、必ず次の人を表面からスタートさせる魔法の命令 */
+            break-before: right; 
+        }
+        
+        @media print {
+            .no-print { display: none; }
+            .report-frame { border: none; height: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container no-print">
+    <h1>マネーフォワード 一括印刷（両面・ズレ防止版）</h1>
+    <p style="font-size: 13px; color: #666;">
+        ① マネーフォワードの一覧画面（100件）を `Ctrl+A` で全選択して `Ctrl+C` でコピーします。<br>
+        ② 下の枠に貼り付けて（Ctrl+V）、ボタンを押してください。
+    </p>
+    <textarea id="urlInput" placeholder="ここにコピーしたデータを貼り付けます..."></textarea>
+    <button onclick="generatePrintPage()">100件を1つのページにまとめる</button>
+</div>
+
+<div id="previewArea" class="preview-area"></div>
+
+<script>
+function generatePrintPage() {
+    const rawData = document.getElementById('urlInput').value;
+    const previewArea = document.getElementById('previewArea');
+    previewArea.innerHTML = ''; 
+
+    // マネーフォワードの詳細URLを自動抽出
+    const regex = /\/expense\/reports\/[a-zA-Z0-9_\-]+/g;
+    const matches = rawData.match(regex);
+
+    if (!matches || matches.length === 0) {
+        alert('URLが見つかりませんでした。一覧画面の文字をまるごとコピーして貼り付けてみてください。');
+        return;
+    }
+
+    const uniqueUrls = [...new Set(matches)];
+    const baseUrl = "https://moneyforward.com";
+
+    alert(`${uniqueUrls.length}件の申請書を検出しました。両面印刷のズレを防止しながら結合します。`);
+
+    uniqueUrls.forEach(url => {
+        const fullUrl = url.startsWith('http') ? url : baseUrl + url;
+        const iframe = document.createElement('iframe');
+        iframe.src = fullUrl;
+        iframe.className = 'report-frame'; // ズレ防止のスタイルを適用
+        previewArea.appendChild(iframe);
+    });
+
+    // 読み込み完了を少し待って印刷画面を起動
+    setTimeout(() => {
+        window.print();
+    }, 4000); 
+}
+</script>
+
+</body>
+</html>
